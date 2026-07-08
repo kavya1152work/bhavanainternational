@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import { ArrowRight, ShieldCheck, Search, HeadphonesIcon, FileCheck, Truck, TrendingUp, Globe, ChevronDown, ChevronUp } from 'lucide-react';
@@ -13,12 +13,115 @@ import ceramicsImg from '../../assets/ceramics .png';
 
 const Home = () => {
   const [openFaq, setOpenFaq] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    company: '',
+    email: '',
+    phone: '',
+    country: '',
+    message: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState({ type: null, message: '' });
+  const [validationErrors, setValidationErrors] = useState({});
 
   const scrollToContact = (e) => {
     if (e) e.preventDefault();
     const element = document.getElementById('contact');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.name.trim()) {
+      errors.name = 'Full name is required';
+    } else if (formData.name.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    }
+
+    if (!formData.email.trim()) {
+      errors.email = 'Email address is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (!formData.message.trim()) {
+      errors.message = 'Requirements description is required';
+    } else if (formData.message.trim().length < 10) {
+      errors.message = 'Requirements must be at least 10 characters';
+    }
+
+    return errors;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitStatus({ type: null, message: '' });
+    
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      // Scroll to the first validation error if needed
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const response = await fetch(`${apiUrl}/contacts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.errors?.[0]?.message || 'Something went wrong. Please try again.');
+      }
+
+      setSubmitStatus({
+        type: 'success',
+        message: data.message || 'Your inquiry has been submitted successfully!'
+      });
+      
+      // Reset form on success
+      setFormData({
+        name: '',
+        company: '',
+        email: '',
+        phone: '',
+        country: '',
+        message: ''
+      });
+    } catch (err) {
+      setSubmitStatus({
+        type: 'error',
+        message: err.message || 'Failed to connect to the server. Please try again later.'
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -361,7 +464,7 @@ const Home = () => {
                 <div className="bg-white p-6 rounded-2xl border border-border-main shadow-sm mt-8">
                   <h4 className="font-bold text-lg mb-2 text-primary-main">Need a Quick Response?</h4>
                   <p className="text-sm text-text-body mb-4">Connect with our team on WhatsApp for product inquiries and export assistance.</p>
-                  <a href="https://wa.me/919624988888?text=Hello%20Bhavana%20International,%20I%20am%20interested%20in%20your%20products%20and%20would%20like%20to%20discuss%20further." target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1ebd59] text-white font-bold py-3 px-6 rounded-lg transition-colors w-full shadow-sm">
+                  <a href="https://wa.me/919624988888?text=Hello%2C%0A%0AI%20would%20like%20to%20enquire%20about%20your%20export%20products%20and%20services.%20Please%20share%20more%20information.%0A%0AThank%20you." target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1ebd59] text-white font-bold py-3 px-6 rounded-lg transition-colors w-full shadow-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle" aria-hidden="true"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"></path></svg> Chat on WhatsApp
                   </a>
                 </div>
@@ -369,37 +472,141 @@ const Home = () => {
             </div>
             <div className="lg:w-3/5 p-10 lg:p-12">
               <h3 className="text-2xl font-bold mb-8 text-primary-main">Request a Quote</h3>
-              <form className="space-y-6">
+              
+              {submitStatus.type && (
+                <div 
+                  className={`p-4 rounded-xl mb-6 border transition-all duration-300 ${
+                    submitStatus.type === 'success' 
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                      : 'bg-red-50 border-red-200 text-red-800'
+                  }`}
+                >
+                  <p className="text-sm font-semibold">
+                    {submitStatus.type === 'success' ? '✓ Success' : '⚠️ Error'}
+                  </p>
+                  <p className="text-xs mt-1 leading-relaxed">{submitStatus.message}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label htmlFor="name" className="text-sm font-medium text-text-body">Full Name<span className='text-red-700 '>*</span></label>
-                    <input id="name" className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all" placeholder="Your Name" type="text" name="name" />
+                    <label htmlFor="name" className="text-sm font-medium text-text-body flex justify-between">
+                      <span>Full Name<span className='text-red-700 '>*</span></span>
+                    </label>
+                    <input 
+                      id="name" 
+                      name="name"
+                      type="text" 
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 outline-none transition-all ${
+                        validationErrors.name 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                          : 'border-border-input focus:border-primary-main focus:ring-primary-main/20'
+                      }`} 
+                      placeholder="Your Name" 
+                    />
+                    {validationErrors.name && (
+                      <p className="text-xs text-red-600 mt-1">{validationErrors.name}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="company" className="text-sm font-medium text-text-body">Company Name</label>
-                    <input id="company" className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all" placeholder="Your Company" type="text" name="company" />
+                    <input 
+                      id="company" 
+                      name="company"
+                      type="text" 
+                      value={formData.company}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all" 
+                      placeholder="Your Company" 
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label htmlFor="email" className="text-sm font-medium text-text-body">Email Address<span className='text-red-700 '>*</span></label>
-                    <input id="email" className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all" placeholder="your@email.com" type="email" name="email" />
+                    <input 
+                      id="email" 
+                      name="email"
+                      type="email" 
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 outline-none transition-all ${
+                        validationErrors.email 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                          : 'border-border-input focus:border-primary-main focus:ring-primary-main/20'
+                      }`} 
+                      placeholder="your@email.com" 
+                    />
+                    {validationErrors.email && (
+                      <p className="text-xs text-red-600 mt-1">{validationErrors.email}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="phone" className="text-sm font-medium text-text-body">Phone   / WhatsApp</label>
-                    <input id="phone" className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all" placeholder="+91 XXXX XXXXXX" type="tel" name="phone" />
+                    <label htmlFor="phone" className="text-sm font-medium text-text-body">Phone / WhatsApp</label>
+                    <input 
+                      id="phone" 
+                      name="phone"
+                      type="tel" 
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all" 
+                      placeholder="+91 XXXX XXXXXX" 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="country" className="text-sm font-medium text-text-body">Destination Country</label>
-                  <input id="country" className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all" placeholder="Your Country" type="text" name="country" />
+                  <input 
+                    id="country" 
+                    name="country"
+                    type="text" 
+                    value={formData.country}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all" 
+                    placeholder="Your Country" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="message" className="text-sm font-medium text-text-body">Your Requirements<span className='text-red-700 '>*</span></label>
-                  <textarea id="message" name="message" rows="5" className="w-full px-4 py-3 rounded-lg border border-border-input focus:border-primary-main focus:ring-2 focus:ring-primary-main/20 outline-none transition-all resize-none" placeholder="Tell us the products you're looking for, quantity, destination country, or any specific requirements."></textarea>
+                  <textarea 
+                    id="message" 
+                    name="message" 
+                    rows="5" 
+                    value={formData.message}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-3 rounded-lg border focus:ring-2 outline-none transition-all resize-none ${
+                      validationErrors.message 
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                        : 'border-border-input focus:border-primary-main focus:ring-primary-main/20'
+                    }`} 
+                    placeholder="Tell us the products you're looking for, quantity, destination country, or any specific requirements."
+                  />
+                  {validationErrors.message && (
+                    <p className="text-xs text-red-600 mt-1">{validationErrors.message}</p>
+                  )}
                 </div>
-                <button type="submit" className="inline-flex items-center justify-center font-semibold rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 bg-primary-main text-white hover:bg-primary-dark focus-visible:ring-primary-main shadow-md hover:shadow-lg hover:-translate-y-0.5 px-8 py-4 text-lg cursor-pointer active:scale-[0.98] w-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-send mr-2" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg> Request a Quote
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="inline-flex items-center justify-center font-semibold rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 bg-primary-main text-white hover:bg-primary-dark focus-visible:ring-primary-main shadow-md hover:shadow-lg hover:-translate-y-0.5 px-8 py-4 text-lg cursor-pointer active:scale-[0.98] w-full disabled:opacity-70 disabled:cursor-not-allowed disabled:-translate-y-0"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-send mr-2" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg> 
+                      Request a Quote
+                    </>
+                  )}
                 </button>
               </form>
             </div>
